@@ -1,0 +1,483 @@
+
+<!doctype html>
+<html lang='he'>
+<head>
+<meta charset='utf-8'>
+<meta name='viewport' content='width=device-width, initial-scale=1'>
+<title>תרשים גאנט — גרסה 5 (תיקון יישור שורות + Zoom/Week/Export)</title>
+<style>
+:root{ --labelW:720px; --pxDay:26px; --rowH:52px; --headerH:84px;}
+
+*{box-sizing:border-box;}
+
+body{font-family: DejaVu Sans, 'Noto Sans Hebrew', Arial; margin:16px; color:#111;}
+
+.toolbar{display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:8px 0 12px;}
+
+.toolbar button{padding:6px 10px; border:1px solid #ccc; border-radius:10px; background:#fff; cursor:pointer;}
+
+.toolbar button:hover{background:#f3f3f3;}
+
+.controls{display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:12px;}
+
+.chip{display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border:1px solid #ccc; border-radius:14px; background:#f7f7f7; cursor:pointer;}
+
+.chip input{accent-color:#4aa3ff;}
+
+.chip.active{background:#e0f2ff; border-color:#4aa3ff;}
+
+.gantt{display:flex; align-items:flex-start; border:1px solid #ddd; border-radius:12px; overflow:hidden;}
+
+.label-col{flex:0 0 var(--labelW); background:#fff; direction:rtl; border-inline-end:1px solid #eee; padding-top:var(--headerH);}
+
+.date-col{position:relative; flex:1 1 auto; overflow-x:auto;}
+
+.timeline{position:relative; padding-bottom:24px;}
+
+.rows{margin:0; padding-top:0;} /* no global padding; label column gets a single header spacer */
+
+.row{position:relative; height:var(--rowH); border-bottom:1px solid #f5f5f5; margin:0; padding:0 10px;}
+
+.row-bg{position:absolute; left:0; right:0; top:0; bottom:0; background:#fafafa;}
+
+.label{position:absolute; right:12px; left:12px; top:10px; height:26px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:right;}
+
+.scale-wrap{position:sticky; top:0; z-index:10;}
+
+.month-band{height:24px; background:#f7faff; border-bottom:1px solid #e0ecff; display:flex; align-items:center; font-weight:bold; color:#264b9b; padding-inline:8px;}
+
+.week-band{height:22px; background:#fbfbfb; border-bottom:1px solid #eee; display:flex; align-items:center; color:#333;}
+
+.week-cell{height:22px; display:flex; align-items:center; justify-content:center; border-right:1px solid #f0f0f0; font-size:12px;}
+
+.day-scale{height:38px; background:#fff; border-bottom:1px solid #eee; position:relative;}
+
+.grid{position:absolute; top:0; left:0; right:0; height:100%;} .grid div{position:absolute; top:0; bottom:0; border-right:1px dashed #f0f0f0;}
+
+.day{position:absolute; top:20px; text-align:center; color:#333;} .day .txt{display:inline-block; font-size:10px; transform:rotate(-35deg); transform-origin:50% 0; line-height:1;}
+
+.connector{position:absolute; top:calc(var(--rowH)/2); height:0; border-bottom:1px dashed #9aa; opacity:0.95;}
+
+.pin{position:absolute; top:calc(var(--rowH)/2 - 8px); width:10px; height:10px; border-radius:50%%; border:1px solid #222; box-shadow:0 0 0 1px #fff;}
+
+.range-line{position:absolute; top:calc(var(--rowH)/2); height:2px; background:#333;}
+
+.date-tag{position:absolute; top:calc(var(--rowH)/2 - 24px); transform:translateX(-50%%); background:#fff; color:#333; font-size:11px; padding:2px 6px; border:1px solid #ddd; border-radius:8px; box-shadow:0 1px 2px rgba(0,0,0,0.05);}
+
+.today-line{position:absolute; top:0; bottom:0; width:2px; background:red; z-index:4;}
+
+@media print{
+  body{margin:0;}
+  .controls,.toolbar,.legend{display:none !important;}
+  .gantt{border:none;}
+  .date-col{overflow:visible;}
+  .timeline{transform:scale(0.88); transform-origin: top left;}
+  @page{size:A4 landscape; margin:10mm;}
+}
+
+</style>
+</head>
+<body>
+<h2>תרשים גאנט — גרסה 5 (תיקון יישור שורות + Zoom/Week/Export)</h2>
+<p>יישור השורות תוקן: עמודת התוויות נדחפת מטה בדיוק בגובה פסי החודש+שבוע+יום. כל השדרוגים (זום/שבועות/ייצוא) נשמרו.</p>
+<div class='toolbar'>
+<button id='zoomOut'>זום −</button>
+<button id='zoomIn'>זום +</button>
+<button id='zoomReset'>איפוס זום</button>
+<button id='exportPDF'>ייצוא ל‑PDF</button>
+<button id='exportPNG'>ייצוא ל‑PNG</button>
+<span id='zoomInfo' style='color:#666; margin-inline-start:8px'>יום: <span id='pxInfo'></span>px</span>
+</div>
+<div class='controls'>
+<strong>נושאים:</strong>
+<label class='chip active'><input type='checkbox' class='topic-check' data-topic='מר"ס – ממשק' checked><span style='display:inline-block;width:12px;height:12px;border:1px solid #333;border-radius:3px;background:#2ca02c'></span> מר"ס – ממשק</label>
+<label class='chip active'><input type='checkbox' class='topic-check' data-topic='מסירות' checked><span style='display:inline-block;width:12px;height:12px;border:1px solid #333;border-radius:3px;background:#9467bd'></span> מסירות</label>
+<label class='chip active'><input type='checkbox' class='topic-check' data-topic='Osprey-H Raven' checked><span style='display:inline-block;width:12px;height:12px;border:1px solid #333;border-radius:3px;background:#1f77b4'></span> Osprey-H Raven</label>
+<label class='chip active'><input type='checkbox' class='topic-check' data-topic='אבלואציה  והטמעות' checked><span style='display:inline-block;width:12px;height:12px;border:1px solid #333;border-radius:3px;background:#d62728'></span> אבלואציה  והטמעות</label>
+<label class='chip active'><input type='checkbox' class='topic-check' data-topic='אנטגרציית תחנת Heavy' checked><span style='display:inline-block;width:12px;height:12px;border:1px solid #333;border-radius:3px;background:#ff7f0e'></span> אנטגרציית תחנת Heavy</label>
+<label class='chip active'><input type='checkbox' class='topic-check' data-topic='שיפורי מערכת' checked><span style='display:inline-block;width:12px;height:12px;border:1px solid #333;border-radius:3px;background:#17becf'></span> שיפורי מערכת</label>
+<button id='btnAll'>בחר הכל</button>
+<button id='btnClear'>נקה הכל</button>
+</div>
+<div class='gantt' id='gantt'>
+<div class='label-col'>
+<div class='topic-block label-block' data-topic='מר"ס – ממשק'>
+<div class='rows'>
+<div class='row'>
+<div class='row-bg'></div>
+<div class='label' title='#7 — שריון מערכת (+ ספייר)' style='color:#2ca02c'>#7 — שריון מערכת (+ ספייר)</div>
+</div>
+<div class='row'>
+<div class='row-bg'></div>
+<div class='label' title='#5 — ישור קו דרישות ב"מ – מול רכאן' style='color:#2ca02c'>#5 — ישור קו דרישות ב"מ – מול רכאן</div>
+</div>
+<div class='row'>
+<div class='row-bg'></div>
+<div class='label' title='#6 — קביעת מועד , יעדים ברורים ומקום לביצוע אנטגרציה' style='color:#2ca02c'>#6 — קביעת מועד , יעדים ברורים ומקום לביצוע אנטגרציה</div>
+</div>
+<div class='row'>
+<div class='row-bg'></div>
+<div class='label' title='#8 — בדיקות מעבדה בנתניה' style='color:#2ca02c'>#8 — בדיקות מעבדה בנתניה</div>
+</div>
+<div class='row'>
+<div class='row-bg'></div>
+<div class='label' title='#9 — הכנות לוגסטיות וחיבור בשטח' style='color:#2ca02c'>#9 — הכנות לוגסטיות וחיבור בשטח</div>
+</div>
+<div class='row'>
+<div class='row-bg'></div>
+<div class='label' title='#10 — הפעלה מבצעית מוגבלת' style='color:#2ca02c'>#10 — הפעלה מבצעית מוגבלת</div>
+</div>
+</div>
+</div>
+<div class='topic-block label-block' data-topic='מסירות'>
+<div class='rows'>
+<div class='row'>
+<div class='row-bg'></div>
+<div class='label' title='#13 — מסירת מערכת 76  (7046)' style='color:#9467bd'>#13 — מסירת מערכת 76  (7046)</div>
+</div>
+<div class='row'>
+<div class='row-bg'></div>
+<div class='label' title='#14 — מסירת מערכת נוספת יבשה ECTS' style='color:#9467bd'>#14 — מסירת מערכת נוספת יבשה ECTS</div>
+</div>
+<div class='row'>
+<div class='row-bg'></div>
+<div class='label' title='#15 — מסירת מערכת EGT מר"ס' style='color:#9467bd'>#15 — מסירת מערכת EGT מר"ס</div>
+</div>
+<div class='row'>
+<div class='row-bg'></div>
+<div class='label' title='#16 — מסירת מערכת Heavy 1 טקטי' style='color:#9467bd'>#16 — מסירת מערכת Heavy 1 טקטי</div>
+</div>
+<div class='row'>
+<div class='row-bg'></div>
+<div class='label' title='#19 — מסירת מערכת EGV1 – איוש' style='color:#9467bd'>#19 — מסירת מערכת EGV1 – איוש</div>
+</div>
+<div class='row'>
+<div class='row-bg'></div>
+<div class='label' title='#17 — מסירת מערכת Heavy 2 טקטי' style='color:#9467bd'>#17 — מסירת מערכת Heavy 2 טקטי</div>
+</div>
+<div class='row'>
+<div class='row-bg'></div>
+<div class='label' title='#18 — מסירת מערכת Heavy 3 נייח' style='color:#9467bd'>#18 — מסירת מערכת Heavy 3 נייח</div>
+</div>
+</div>
+</div>
+<div class='topic-block label-block' data-topic='Osprey-H Raven'>
+<div class='rows'>
+<div class='row'>
+<div class='row-bg'></div>
+<div class='label' title='#1 — הטסת פלטפורמה – בדיקות משך (מטע"ד דמה )' style='color:#1f77b4'>#1 — הטסת פלטפורמה – בדיקות משך (מטע"ד דמה )</div>
+</div>
+<div class='row'>
+<div class='row-bg'></div>
+<div class='label' title='#2 — אפיון ותיקונים בתמיכת פלטפורמה חדשה (קבצי קונפיגורציה , התאמת התראות ופעילות מערכת)' style='color:#1f77b4'>#2 — אפיון ותיקונים בתמיכת פלטפורמה חדשה (קבצי קונפיגורציה , התאמת התראות ופעילות מערכת)</div>
+</div>
+<div class='row'>
+<div class='row-bg'></div>
+<div class='label' title='#3 — בדיקת ממשק  raven טיפול בפערי שליטה' style='color:#1f77b4'>#3 — בדיקת ממשק  raven טיפול בפערי שליטה</div>
+</div>
+<div class='row'>
+<div class='row-bg'></div>
+<div class='label' title='#4 — ישור קו פלטפורמה- GPS מטען , חשמל ..' style='color:#1f77b4'>#4 — ישור קו פלטפורמה- GPS מטען , חשמל ..</div>
+</div>
+</div>
+</div>
+<div class='topic-block label-block' data-topic='אבלואציה  והטמעות'>
+<div class='rows'>
+<div class='row'>
+<div class='row-bg'></div>
+<div class='label' title='#23 — הכשרת מפעילות מר"ס' style='color:#d62728'>#23 — הכשרת מפעילות מר"ס</div>
+</div>
+<div class='row'>
+<div class='row-bg'></div>
+<div class='label' title='#22 — הכשרת EGV ל 8109 תע"ש' style='color:#d62728'>#22 — הכשרת EGV ל 8109 תע"ש</div>
+</div>
+<div class='row'>
+<div class='row-bg'></div>
+<div class='label' title='#21 — הכשרת רחפן Heavy למשתמש קצה' style='color:#d62728'>#21 — הכשרת רחפן Heavy למשתמש קצה</div>
+</div>
+<div class='row'>
+<div class='row-bg'></div>
+<div class='label' title='#20 — אבלואציה רחפן Heavy' style='color:#d62728'>#20 — אבלואציה רחפן Heavy</div>
+</div>
+</div>
+</div>
+<div class='topic-block label-block' data-topic='אנטגרציית תחנת Heavy'>
+<div class='rows'>
+<div class='row'>
+<div class='row-bg'></div>
+<div class='label' title='#11 — בדיקות תקינות , ממשקים' style='color:#ff7f0e'>#11 — בדיקות תקינות , ממשקים</div>
+</div>
+<div class='row'>
+<div class='row-bg'></div>
+<div class='label' title='#12 — הפעלה ממושכת (תע"ש)' style='color:#ff7f0e'>#12 — הפעלה ממושכת (תע"ש)</div>
+</div>
+</div>
+</div>
+<div class='topic-block label-block' data-topic='שיפורי מערכת'>
+<div class='rows'>
+<div class='row'>
+<div class='row-bg'></div>
+<div class='label' title='#24 — עדכון גרסאות – נדרשת הזמנת פיתוח למימוש מסקנות אבלואציה מהשטח' style='color:#17becf'>#24 — עדכון גרסאות – נדרשת הזמנת פיתוח למימוש מסקנות אבלואציה מהשטח</div>
+</div>
+</div>
+</div>
+</div>
+<div class='date-col'>
+<div class='timeline' id='timeline'>
+<div class='scale-wrap'>
+<div class='month-band' id='monthBand'></div>
+<div class='week-band' id='weekBand'></div>
+<div class='day-scale' id='dayScale'>
+<div class='grid' id='grid'></div>
+</div>
+</div>
+<div class='today-line' id='todayLine' title='היום'></div>
+<div class='topic-block date-block' data-topic='מר"ס – ממשק'>
+<div class='rows'>
+<div class='row'>
+<div class='connector' data-start='0'></div>
+<div class='pin' data-start='0'></div>
+<div class='date-tag' data-start='0'>07.01</div>
+</div>
+<div class='row'>
+<div class='connector' data-start='1'></div>
+<div class='pin' data-start='1'></div>
+<div class='date-tag' data-start='1'>08.01</div>
+</div>
+<div class='row'>
+<div class='connector' data-start='6'></div>
+<div class='pin' data-start='6'></div>
+<div class='date-tag' data-start='6'>13.01</div>
+</div>
+<div class='row'>
+<div class='connector' data-start='13'></div>
+<div class='pin' data-start='13'></div>
+<div class='date-tag' data-start='13'>20.01</div>
+</div>
+<div class='row'>
+<div class='connector' data-start='21'></div>
+<div class='pin' data-start='21'></div>
+<div class='date-tag' data-start='21'>28.01</div>
+</div>
+<div class='row'>
+<div class='connector' data-start='26'></div>
+<div class='pin' data-start='26'></div>
+<div class='date-tag' data-start='26'>02.02</div>
+<div class='range-line' data-start='26' data-end='36'></div>
+<div class='pin' data-end='36'></div>
+<div class='date-tag' data-end='36'>12.02</div>
+</div>
+</div>
+</div>
+<div class='topic-block date-block' data-topic='מסירות'>
+<div class='rows'>
+<div class='row'>
+<div class='connector' data-start='1'></div>
+<div class='pin' data-start='1'></div>
+<div class='date-tag' data-start='1'>08.01</div>
+</div>
+<div class='row'>
+<div class='connector' data-start='7'></div>
+<div class='pin' data-start='7'></div>
+<div class='date-tag' data-start='7'>14.01</div>
+</div>
+<div class='row'>
+<div class='connector' data-start='26'></div>
+<div class='pin' data-start='26'></div>
+<div class='date-tag' data-start='26'>02.02</div>
+</div>
+<div class='row'>
+<div class='connector' data-start='29'></div>
+<div class='pin' data-start='29'></div>
+<div class='date-tag' data-start='29'>05.02</div>
+</div>
+<div class='row'>
+<div class='connector' data-start='36'></div>
+<div class='pin' data-start='36'></div>
+<div class='date-tag' data-start='36'>12.02</div>
+</div>
+<div class='row'>
+<div class='connector' data-start='50'></div>
+<div class='pin' data-start='50'></div>
+<div class='date-tag' data-start='50'>26.02</div>
+</div>
+<div class='row'>
+<div class='connector' data-start='57'></div>
+<div class='pin' data-start='57'></div>
+<div class='date-tag' data-start='57'>05.03</div>
+</div>
+</div>
+</div>
+<div class='topic-block date-block' data-topic='Osprey-H Raven'>
+<div class='rows'>
+<div class='row'>
+<div class='connector' data-start='7'></div>
+<div class='pin' data-start='7'></div>
+<div class='date-tag' data-start='7'>14.01</div>
+</div>
+<div class='row'>
+<div class='connector' data-start='15'></div>
+<div class='pin' data-start='15'></div>
+<div class='date-tag' data-start='15'>22.01</div>
+</div>
+<div class='row'>
+<div class='connector' data-start='22'></div>
+<div class='pin' data-start='22'></div>
+<div class='date-tag' data-start='22'>29.01</div>
+</div>
+<div class='row'>
+<div class='connector' data-start='22'></div>
+<div class='pin' data-start='22'></div>
+<div class='date-tag' data-start='22'>29.01</div>
+</div>
+</div>
+</div>
+<div class='topic-block date-block' data-topic='אבלואציה  והטמעות'>
+<div class='rows'>
+<div class='row'>
+<div class='connector' data-start='13'></div>
+<div class='pin' data-start='13'></div>
+<div class='date-tag' data-start='13'>20.01</div>
+<div class='range-line' data-start='13' data-end='15'></div>
+<div class='pin' data-end='15'></div>
+<div class='date-tag' data-end='15'>22.01</div>
+</div>
+<div class='row'>
+<div class='connector' data-start='21'></div>
+<div class='pin' data-start='21'></div>
+<div class='date-tag' data-start='21'>28.01</div>
+<div class='range-line' data-start='21' data-end='22'></div>
+<div class='pin' data-end='22'></div>
+<div class='date-tag' data-end='22'>29.01</div>
+</div>
+<div class='row'>
+<div class='connector' data-start='25'></div>
+<div class='pin' data-start='25'></div>
+<div class='date-tag' data-start='25'>01.02</div>
+</div>
+<div class='row'>
+<div class='connector' data-start='29'></div>
+<div class='pin' data-start='29'></div>
+<div class='date-tag' data-start='29'>05.02</div>
+<div class='range-line' data-start='29' data-end='50'></div>
+<div class='pin' data-end='50'></div>
+<div class='date-tag' data-end='50'>26.02</div>
+</div>
+</div>
+</div>
+<div class='topic-block date-block' data-topic='אנטגרציית תחנת Heavy'>
+<div class='rows'>
+<div class='row'>
+<div class='connector' data-start='21'></div>
+<div class='pin' data-start='21'></div>
+<div class='date-tag' data-start='21'>28.01</div>
+</div>
+<div class='row'>
+<div class='connector' data-start='36'></div>
+<div class='pin' data-start='36'></div>
+<div class='date-tag' data-start='36'>12.02</div>
+</div>
+</div>
+</div>
+<div class='topic-block date-block' data-topic='שיפורי מערכת'>
+<div class='rows'>
+<div class='row'>
+<div class='connector' data-start='114'></div>
+<div class='pin' data-start='114'></div>
+<div class='date-tag' data-start='114'>01.05</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class='legend'>
+<div class='legend-item'><div class='swatch' style='background:#1f77b4'></div><div>Osprey-H Raven</div></div>
+<div class='legend-item'><div class='swatch' style='background:#2ca02c'></div><div>מר"ס – ממשק</div></div>
+<div class='legend-item'><div class='swatch' style='background:#ff7f0e'></div><div>אנטגרציית תחנת Heavy</div></div>
+<div class='legend-item'><div class='swatch' style='background:#9467bd'></div><div>מסירות</div></div>
+<div class='legend-item'><div class='swatch' style='background:#d62728'></div><div>אבלואציה  והטמעות</div></div>
+<div class='legend-item'><div class='swatch' style='background:#17becf'></div><div>שיפורי מערכת</div></div>
+</div>
+<script>
+const DATES = ["2026-01-07", "2026-01-08", "2026-01-09", "2026-01-10", "2026-01-11", "2026-01-12", "2026-01-13", "2026-01-14", "2026-01-15", "2026-01-16", "2026-01-17", "2026-01-18", "2026-01-19", "2026-01-20", "2026-01-21", "2026-01-22", "2026-01-23", "2026-01-24", "2026-01-25", "2026-01-26", "2026-01-27", "2026-01-28", "2026-01-29", "2026-01-30", "2026-01-31", "2026-02-01", "2026-02-02", "2026-02-03", "2026-02-04", "2026-02-05", "2026-02-06", "2026-02-07", "2026-02-08", "2026-02-09", "2026-02-10", "2026-02-11", "2026-02-12", "2026-02-13", "2026-02-14", "2026-02-15", "2026-02-16", "2026-02-17", "2026-02-18", "2026-02-19", "2026-02-20", "2026-02-21", "2026-02-22", "2026-02-23", "2026-02-24", "2026-02-25", "2026-02-26", "2026-02-27", "2026-02-28", "2026-03-01", "2026-03-02", "2026-03-03", "2026-03-04", "2026-03-05", "2026-03-06", "2026-03-07", "2026-03-08", "2026-03-09", "2026-03-10", "2026-03-11", "2026-03-12", "2026-03-13", "2026-03-14", "2026-03-15", "2026-03-16", "2026-03-17", "2026-03-18", "2026-03-19", "2026-03-20", "2026-03-21", "2026-03-22", "2026-03-23", "2026-03-24", "2026-03-25", "2026-03-26", "2026-03-27", "2026-03-28", "2026-03-29", "2026-03-30", "2026-03-31", "2026-04-01", "2026-04-02", "2026-04-03", "2026-04-04", "2026-04-05", "2026-04-06", "2026-04-07", "2026-04-08", "2026-04-09", "2026-04-10", "2026-04-11", "2026-04-12", "2026-04-13", "2026-04-14", "2026-04-15", "2026-04-16", "2026-04-17", "2026-04-18", "2026-04-19", "2026-04-20", "2026-04-21", "2026-04-22", "2026-04-23", "2026-04-24", "2026-04-25", "2026-04-26", "2026-04-27", "2026-04-28", "2026-04-29", "2026-04-30", "2026-05-01"];
+
+const WEEKS = [{"week": 2, "start": 0, "end": 5}, {"week": 3, "start": 5, "end": 12}, {"week": 4, "start": 12, "end": 19}, {"week": 5, "start": 19, "end": 26}, {"week": 6, "start": 26, "end": 33}, {"week": 7, "start": 33, "end": 40}, {"week": 8, "start": 40, "end": 47}, {"week": 9, "start": 47, "end": 54}, {"week": 10, "start": 54, "end": 61}, {"week": 11, "start": 61, "end": 68}, {"week": 12, "start": 68, "end": 75}, {"week": 13, "start": 75, "end": 82}, {"week": 14, "start": 82, "end": 89}, {"week": 15, "start": 89, "end": 96}, {"week": 16, "start": 96, "end": 103}, {"week": 17, "start": 103, "end": 110}, {"week": 18, "start": 110, "end": 115}];
+
+let pxDay = 26;
+
+function setPxDay(val){ pxDay = Math.max(16, Math.min(48, val)); document.documentElement.style.setProperty('--pxDay', pxDay + 'px'); document.getElementById('pxInfo').textContent = pxDay; renderScale(); positionMarkers(); }
+
+function daysCount(){ return DATES.length; }
+
+function leftPx(dayIdx){ return dayIdx * pxDay; }
+
+function renderScale(){
+  const monthBand = document.getElementById('monthBand');
+  const weekBand = document.getElementById('weekBand');
+  const dayScale = document.getElementById('dayScale');
+  const grid = document.getElementById('grid');
+  monthBand.innerHTML = ''; weekBand.innerHTML = ''; grid.innerHTML=''; dayScale.querySelectorAll('.day').forEach(n=>n.remove());
+  let curM = null, segStart = 0;
+  DATES.forEach((d,i)=>{
+    const dt = new Date(d);
+    const m = dt.toLocaleString('en-GB', { month: 'short', year:'numeric' });
+    if(m !== curM){
+      if(curM!==null){ const segW = leftPx(i) - leftPx(segStart); const div = document.createElement('div'); div.style.width = segW + 'px'; div.style.textAlign='center'; div.textContent = curM; monthBand.appendChild(div); }
+      curM = m; segStart = i;
+    }
+  });
+  const lastW = leftPx(daysCount()) - leftPx(segStart);
+  const lastDiv = document.createElement('div'); lastDiv.style.width = lastW + 'px'; lastDiv.style.textAlign='center'; lastDiv.textContent = curM; monthBand.appendChild(lastDiv);
+  WEEKS.forEach(w=>{ const segW = leftPx(w.end) - leftPx(w.start); const div = document.createElement('div'); div.className='week-cell'; div.style.width = segW + 'px'; div.textContent = 'Week ' + w.week; weekBand.appendChild(div); });
+  for(let i=0;i<daysCount();i++){ const g = document.createElement('div'); g.style.left = leftPx(i) + 'px'; g.style.width = pxDay + 'px'; grid.appendChild(g); const d = document.createElement('div'); d.className='day'; d.style.left = leftPx(i) + 'px'; const s = document.createElement('span'); s.className='txt'; const dt = new Date(DATES[i]); const dd = String(dt.getDate()).padStart(2,'0'); const mm = String(dt.getMonth()+1).padStart(2,'0'); s.textContent = dd + '.' + mm; d.appendChild(s); dayScale.appendChild(d); }
+  const todayLine = document.getElementById('todayLine'); const today = new Date(); today.setHours(0,0,0,0); const min = new Date(DATES[0]); min.setHours(0,0,0,0); const idx = Math.round((today - min)/(1000*60*60*24)); const left = leftPx(Math.max(0, Math.min(daysCount(), idx))); todayLine.style.left = left + 'px';
+}
+
+function positionMarkers(){
+  document.querySelectorAll('.connector').forEach(el=>{ const s = parseInt(el.getAttribute('data-start')); el.style.left = '0px'; el.style.width = leftPx(s) + 'px'; });
+  document.querySelectorAll('.pin[data-start]').forEach(el=>{ const s = parseInt(el.getAttribute('data-start')); el.style.left = (leftPx(s) - 5) + 'px'; });
+  document.querySelectorAll('.date-tag[data-start]').forEach(el=>{ const s = parseInt(el.getAttribute('data-start')); el.style.left = leftPx(s) + 'px'; });
+  document.querySelectorAll('.range-line').forEach(el=>{ const s = parseInt(el.getAttribute('data-start')); const e = parseInt(el.getAttribute('data-end')); el.style.left = leftPx(s) + 'px'; el.style.width = (leftPx(e) - leftPx(s)) + 'px'; });
+  document.querySelectorAll('.pin[data-end]').forEach(el=>{ const e = parseInt(el.getAttribute('data-end')); el.style.left = (leftPx(e) - 5) + 'px'; });
+  document.querySelectorAll('.date-tag[data-end]').forEach(el=>{ const e = parseInt(el.getAttribute('data-end')); el.style.left = leftPx(e) + 'px'; });
+  const tl = document.getElementById('timeline'); tl.style.minWidth = leftPx(daysCount()) + 'px';
+}
+
+function applyFilter(){
+  var selected = [];
+  document.querySelectorAll('.topic-check').forEach(function(cb){ if(cb.checked){ selected.push(cb.getAttribute('data-topic')); }});
+  document.querySelectorAll('.topic-block').forEach(function(b){ var t = b.getAttribute('data-topic'); b.style.display = (selected.indexOf(t) !== -1) ? 'block' : 'none'; });
+  document.querySelectorAll('.chip').forEach(function(chip){ var cb = chip.querySelector('input'); chip.classList.toggle('active', cb.checked); });
+  try{ localStorage.setItem('gantt_topics', JSON.stringify(selected)); }catch(e){}
+}
+
+function restoreSelection(){
+  try{ var raw = localStorage.getItem('gantt_topics'); if(raw){ var sel = JSON.parse(raw); document.querySelectorAll('.topic-check').forEach(function(cb){ var t = cb.getAttribute('data-topic'); cb.checked = sel.indexOf(t) !== -1; }); } }catch(e){} applyFilter();
+}
+
+function exportPDF(){ window.print(); }
+
+function exportPNG(){
+  const target = document.getElementById('gantt'); const w = target.scrollWidth; const h = target.scrollHeight; const svgNS = 'http://www.w3.org/2000/svg'; const xhtmlNS = 'http://www.w3.org/1999/xhtml'; const svg = document.createElementNS(svgNS, 'svg'); svg.setAttribute('xmlns', svgNS); svg.setAttribute('width', w); svg.setAttribute('height', h); const fo = document.createElementNS(svgNS, 'foreignObject'); fo.setAttribute('width', w); fo.setAttribute('height', h); const div = document.createElementNS(xhtmlNS, 'div'); div.setAttribute('xmlns', xhtmlNS); const clone = target.cloneNode(true); clone.style.margin = '0'; clone.style.border = 'none'; clone.style.width = w + 'px'; div.appendChild(clone); fo.appendChild(div); svg.appendChild(fo); const xml = new XMLSerializer().serializeToString(svg); const img = new Image(); img.onload = function(){ const canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h; const ctx = canvas.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0,0,w,h); ctx.drawImage(img,0,0); const a = document.createElement('a'); a.download = 'gantt.png'; a.href = canvas.toDataURL('image/png'); a.click(); }; img.onerror = function(){ alert('ייצוא PNG נכשל בדפדפן זה. נסה Chrome/Edge עדכניים או הדפס ל‑PDF.'); }; img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(xml);
+}
+
+document.getElementById('zoomOut').addEventListener('click', ()=> setPxDay(pxDay-2));
+
+document.getElementById('zoomIn').addEventListener('click', ()=> setPxDay(pxDay+2));
+
+document.getElementById('zoomReset').addEventListener('click', ()=> setPxDay(26));
+
+document.getElementById('exportPDF').addEventListener('click', exportPDF);
+
+document.getElementById('exportPNG').addEventListener('click', exportPNG);
+
+document.getElementById('btnAll').addEventListener('click', function(){ document.querySelectorAll('.topic-check').forEach(function(cb){ cb.checked = true; }); applyFilter(); });
+
+document.getElementById('btnClear').addEventListener('click', function(){ document.querySelectorAll('.topic-check').forEach(function(cb){ cb.checked = false; }); applyFilter(); });
+
+document.addEventListener('change', function(e){ if(e.target.classList.contains('topic-check')){ applyFilter(); }});
+
+document.addEventListener('DOMContentLoaded', function(){ setPxDay(26); restoreSelection(); renderScale(); positionMarkers(); });
+
+</script>
+</body></html>
