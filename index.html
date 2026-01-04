@@ -56,11 +56,33 @@ body{font-family: DejaVu Sans, 'Noto Sans Hebrew', Arial; margin:16px; color:#11
 
 .day{position:absolute; top:20px; text-align:center; color:#333;} .day .txt{display:inline-block; font-size:10px; transform:rotate(-35deg); transform-origin:50% 0; line-height:1;}
 
-.connector{position:absolute; top:calc(var(--rowH)/2); height:0; border-bottom:1px dashed #9aa; opacity:0.95;}
+.connector{
+  position:absolute;
+  top:calc(var(--rowH)/2);
+  height:0;
+  border-bottom:1px dashed var(--tc);
+  opacity:0.95;
+}
 
-.pin{position:absolute; top:calc(var(--rowH)/2 - 8px); width:10px; height:10px; border-radius:50%; border:1px solid #222; box-shadow:0 0 0 1px #fff;}
+.pin{
+  position:absolute;
+  top:calc(var(--rowH)/2 - 8px);
+  width:10px;
+  height:10px;
+  border-radius:50%;
+  background: var(--tc);
+  border:1px solid var(--tc);
+  box-shadow:0 0 0 2px #fff;
+}
 
-.range-line{position:absolute; top:calc(var(--rowH)/2); height:2px; background:#333;}
+.range-line{
+  position:absolute;
+  top:calc(var(--rowH)/2);
+  height:3px;
+  background: var(--tc);
+  border-radius:3px;
+}
+
 
 .date-tag{position:absolute; top:calc(var(--rowH)/2 - 24px); transform:translateX(-50%); background:#fff; color:#333; font-size:11px; padding:2px 6px; border:1px solid #ddd; border-radius:8px; box-shadow:0 1px 2px rgba(0,0,0,0.05);}
 
@@ -96,6 +118,17 @@ body{font-family: DejaVu Sans, 'Noto Sans Hebrew', Arial; margin:16px; color:#11
 <label class='chip active'><input type='checkbox' class='topic-check' data-topic='אבלואציה  והטמעות' checked><span style='display:inline-block;width:12px;height:12px;border:1px solid #333;border-radius:3px;background:#d62728'></span> אבלואציה  והטמעות</label>
 <label class='chip active'><input type='checkbox' class='topic-check' data-topic='אנטגרציית תחנת Heavy' checked><span style='display:inline-block;width:12px;height:12px;border:1px solid #333;border-radius:3px;background:#ff7f0e'></span> אנטגרציית תחנת Heavy</label>
 <label class='chip active'><input type='checkbox' class='topic-check' data-topic='שיפורי מערכת' checked><span style='display:inline-block;width:12px;height:12px;border:1px solid #333;border-radius:3px;background:#17becf'></span> שיפורי מערכת</label>
+/* ===== Topic colors (single source of truth) ===== */
+.topic-block{ --tc:#333; } /* fallback */
+
+/* לפי data-topic */
+.topic-block[data-topic='מר"ס – ממשק']{ --tc:#2ca02c; }
+.topic-block[data-topic='מסירות']{ --tc:#9467bd; }
+.topic-block[data-topic='Osprey-H Raven']{ --tc:#1f77b4; }
+.topic-block[data-topic='אבלואציה  והטמעות']{ --tc:#d62728; }
+.topic-block[data-topic='אנטגרציית תחנת Heavy']{ --tc:#ff7f0e; }
+.topic-block[data-topic='שיפורי מערכת']{ --tc:#17becf; }
+
 <button id='btnAll'>בחר הכל</button>
 <button id='btnClear'>נקה הכל</button>
 </div>
