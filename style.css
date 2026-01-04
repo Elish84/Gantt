@@ -1,5 +1,5 @@
 :root{
-  --labelW:720px;
+  --labelW:500px;
   --pxDay:26px;
   --rowH:52px;
   --headerH:84px;
@@ -46,10 +46,8 @@ body{
 .top-actions{display:flex; gap:8px; align-items:center;}
 
 .layout{
-  display:grid;
-  grid-template-columns: 1fr 380px;
-  gap:14px;
-  padding:14px;
+  display: grid;
+  grid-template-columns: var(--labelW) 1fr;
 }
 .main{min-width:0;}
 .side{position:sticky; top:76px; align-self:start; display:flex; flex-direction:column; gap:14px;}
