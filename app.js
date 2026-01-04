@@ -18,23 +18,30 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const pad2 = (n) => String(n).padStart(2, "0");
 
 function toISODate(d){
-  const dt = (d instanceof Date) ? d : new Date(d);
-  dt.setHours(0,0,0,0);
-  return dt.toISOString().slice(0,10);
+  // Format LOCAL date to YYYY-MM-DD (avoid toISOString timezone shift)
+  const yy = d.getFullYear();
+  const mm = pad2(d.getMonth()+1);
+  const dd = pad2(d.getDate());
+  return `${yy}-${mm}-${dd}`;
 }
 function parseISODate(s){
-  const dt = new Date(s);
-  dt.setHours(0,0,0,0);
-  return dt;
+  // Parse YYYY-MM-DD as LOCAL date (avoid UTC shift)
+  if(!s) return null;
+  const [y,m,d] = String(s).split("-").map(n=>parseInt(n,10));
+  if(!y || !m || !d) return null;
+  return new Date(y, m-1, d, 12, 0, 0, 0); // midday local for DST safety
 }
-function addDays(dateISO, days){
-  const d = parseISODate(dateISO);
-  d.setDate(d.getDate() + days);
-  return toISODate(d);
+function addDays(d, n){
+  const x = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12, 0, 0, 0);
+  x.setDate(x.getDate() + n);
+  return x;
 }
-function diffDays(startISO, endISO){
-  const s = parseISODate(startISO), e = parseISODate(endISO);
-  return Math.round((e - s) / 86400000);
+function diffDays(a,b){
+  // Whole days between two LOCAL dates (a..b), ignoring hours
+  const aa = new Date(a.getFullYear(), a.getMonth(), a.getDate(), 12, 0, 0, 0);
+  const bb = new Date(b.getFullYear(), b.getMonth(), b.getDate(), 12, 0, 0, 0);
+  const ms = bb - aa;
+  return Math.round(ms / 86400000);
 }
 
 /* =========================
@@ -334,6 +341,15 @@ el("btnSaveProject").addEventListener("click", async () => {
 function topicById(id){
   return project?.topics?.find(t => t.id === id) || null;
 }
+
+function setTopicColorUI(hex){
+  const h = (hex || "#1f77b4").toLowerCase();
+  const hexEl = document.getElementById("topicColorHex");
+  const prevEl = document.getElementById("topicColorPreview");
+  if(hexEl) hexEl.textContent = h;
+  if(prevEl) prevEl.style.background = h;
+}
+
 function rebuildTopicSelects(){
   const sel = el("topicSelect");
   const taskSel = el("taskTopic");
