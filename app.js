@@ -15,7 +15,6 @@ import {
 ========================= */
 const el = (id) => document.getElementById(id);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const pad2 = (n) => String(n).padStart(2, "0");
 
 function toISODate(d){
