@@ -1,13 +1,5 @@
 :root{
   --labelW: 130px;
-}
-
-@media (max-width: 1200px){
-  :root{
-    --labelW: 180px;
-  }
-}
-
   --pxDay:26px;
   --rowH:52px;
   --headerH:84px;
