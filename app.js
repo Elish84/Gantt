@@ -918,9 +918,24 @@ function computeDateRange(){
   });
 
   // add padding
+  // add padding
   min = addDays(min, -2);
   max = addDays(max,  2);
+
+  // --- FORCE timeline to fill available width ---
+  const dateCol = el("dateCol");
+  const viewportW = dateCol ? dateCol.clientWidth : 0;
+  const minDaysToFill = Math.max(30, Math.ceil(viewportW / pxDay)); // לפחות 30 יום
+  const spanDays = diffDays(min, max) + 1;
+
+  if (spanDays < minDaysToFill) {
+    const extra = minDaysToFill - spanDays;
+    // RTL אצלך: הרחבת max תאריך "שמאלה" תגדיל את הציר לרוחב
+    max = addDays(max, extra);
+  }
+
   return {min, max};
+
 }
 
 function buildDATES(minISO, maxISO){
