@@ -213,7 +213,7 @@ async function listProjects(){
       closeModal("projectModal");
     });
 
-  btnDel.addEventListener("click", async (e) => {
+ const btnDel.addEventListener("click", async (e) => {
   e.preventDefault();
 
   if(!currentUser || !currentUser.uid) return;
