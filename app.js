@@ -212,8 +212,11 @@ async function listProjects(){
       await loadProject(docSnap.id);
       closeModal("projectModal");
     });
+const btnDel = document.createElement("button");
+btnDel.className = "btn danger";
+btnDel.textContent = "מחק";
 
- const btnDel.addEventListener("click", async (e) => {
+btnDel.addEventListener("click", async (e) => {
   e.preventDefault();
 
   if(!currentUser || !currentUser.uid) return;
@@ -240,7 +243,6 @@ async function listProjects(){
     alert("אירעה שגיאה במחיקת הפרויקט");
   }
 });
-
 
     right.appendChild(btnOpen);
     right.appendChild(btnDel);
