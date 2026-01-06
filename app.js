@@ -213,19 +213,34 @@ async function listProjects(){
       closeModal("projectModal");
     });
 
-    const btnDel = document.createElement("button");
-    btnDel.className = "btn danger";
-    btnDel.textContent = "מחק";
-    btnDel.addEventListener("click", async () => {
-      if(!confirm(`למחוק את הפרויקט "${d.name}"?`)) return;
-      await deleteDoc(doc(db, "users", currentUser.uid, "projects", docSnap.id));
-      if(currentProjectId === docSnap.id){
-        currentProjectId = null; project = null;
-        renderAll();
-  scheduleAutosave(); setProjectPill();
-      }
-      await listProjects();
-    });
+  btnDel.addEventListener("click", async (e) => {
+  e.preventDefault();
+
+  if(!currentUser || !currentUser.uid) return;
+
+  const ok = confirm(
+    `למחוק את הפרויקט "${d.name}"?\n\n` +
+    `⚠️ פעולה זו תמחק את כל המשימות והנתונים ואינה ניתנת לשחזור.`
+  );
+  if(!ok) return;
+
+  try {
+    await deleteDoc(doc(db, "users", currentUser.uid, "projects", docSnap.id));
+
+    if(currentProjectId === docSnap.id){
+      currentProjectId = null;
+      project = null;
+      renderAll();
+      setProjectPill();
+    }
+
+    await listProjects();
+  } catch(err){
+    console.error("Failed to delete project:", err);
+    alert("אירעה שגיאה במחיקת הפרויקט");
+  }
+});
+
 
     right.appendChild(btnOpen);
     right.appendChild(btnDel);
